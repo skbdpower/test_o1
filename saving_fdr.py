@@ -69,12 +69,12 @@ df_full = load_data(file_path)
 if df_full.empty:
     st.stop() 
 
-st.title("✨ Ultimate Static Fixed Deposit Receipt (FDR) Dashboard")
+st.title("✨ SEP 2025 Static Saving FDR Dashboard")
 st.markdown("All **4 KPIs** and **all visualizations** are static and styled with shadows, showing deposited amounts in full numbers.")
 st.markdown("---")
 
 # --- 1st: Styled KPI (Key Performance Indicator) ---
-st.header("1. Styled Key Performance Indicators (KPIs)")
+st.header("Key Performance Indicators (KPIs)")
 
 # Calculate KPIs on the full dataset
 total_deposited_amount = df_full['Deposited_Amount'].sum()
@@ -91,7 +91,7 @@ with col1:
     st.markdown(f"""
         <div style="background-color:#E8F8F5; padding: 15px; border-left: 5px solid #1ABC9C; border-radius: 4px; box-shadow: {SHADOW_STYLE};">
             <h5 style="color:#1ABC9C; margin: 0;">Total Deposits 💰</h5>
-            <h2 style="color:#000000; margin: 5px 0 0;">BDT {total_deposited_amount:,.0f}</h2>
+            <h2 style="color:#000000; margin: 5px 0 0;">{total_deposited_amount:,.0f}</h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -100,7 +100,7 @@ with col2:
     st.markdown(f"""
         <div style="background-color:#F4F6F6; padding: 15px; border-left: 5px solid #3498DB; border-radius: 4px; box-shadow: {SHADOW_STYLE};">
             <h5 style="color:#3498DB; margin: 0;">Avg. Deposit 💸</h5>
-            <h2 style="color:#000000; margin: 5px 0 0;">BDT {average_deposit:,.0f}</h2>
+            <h2 style="color:#000000; margin: 5px 0 0;">{average_deposit:,.0f}</h2>
         </div>
     """, unsafe_allow_html=True)
 
@@ -125,7 +125,7 @@ with col4:
 st.markdown("---")
 
 # --- 2nd: All Column Visualization (Static Plots with Shadows) ---
-st.header("2. All Column Visualization (Static Plots with Shadows)")
+st.header(" All Column Visualization (Static Plots)")
 
 # Row 1: Zone (Bar Chart) and Domain (Bar Chart)
 col_vis1, col_vis_domain = st.columns(2)
@@ -139,8 +139,8 @@ with col_vis1:
         x='Deposited_Amount', 
         y='Zone',             
         orientation='h',      
-        title="Total Deposits Grouped by Zone",
-        labels={'Deposited_Amount': 'Total Deposited Amount (BDT)', 'Zone': 'Zone'},
+        title="Top Total Deposits Grouped by Zone",
+        labels={'Deposited_Amount': 'Total Deposited Amount', 'Zone': 'Zone'},
         color='Deposited_Amount', 
         color_continuous_scale=px.colors.sequential.Teal, 
         template='plotly_white'
@@ -150,7 +150,7 @@ with col_vis1:
         yaxis={'categoryorder': 'total ascending'},
         xaxis={'tickformat': FULL_NUMBER_FORMAT} 
     )
-    display_chart_with_shadow(fig_zone, "Deposits by Zone (Horizontal Bar)")
+    display_chart_with_shadow(fig_zone, "Deposits by Zone ")
 
 
 with col_vis_domain:
@@ -168,7 +168,7 @@ with col_vis_domain:
     fig_domain.update_layout(
         yaxis={'tickformat': FULL_NUMBER_FORMAT} 
     )
-    display_chart_with_shadow(fig_domain, "Deposits by Domain (Bar Chart)")
+    display_chart_with_shadow(fig_domain, "Deposits by Domain")
 
 
 # Row 2: Product and Status
@@ -225,7 +225,7 @@ with col_vis5:
         x='Saving_Cycle',
         y='Deposited_Amount',
         title="Total Deposits by Saving Cycle",
-        labels={'Deposited_Amount': 'Total Deposited Amount (BDT)', 'Saving_Cycle': 'Saving Cycle'},
+        labels={'Deposited_Amount': 'Total Deposited Amount', 'Saving_Cycle': 'Saving Cycle'},
         color='Saving_Cycle',
         template='plotly_white'
     )
@@ -235,6 +235,9 @@ with col_vis5:
     display_chart_with_shadow(fig_cycle, "Deposited Amount by Saving Cycle")
 
 # Row 4 (Full Width)
+# Opening Date (Line Chart) and Mature Date (Area Chart) combined into two subplots if space allowed, 
+# but keeping them sequential for readability and consistent shadow wrapping.
+
 # Opening Date Plot
 df_date_deposit = df_full.groupby('FDR_Opening_Date')['Deposited_Amount'].sum().reset_index()
 df_date_deposit = df_date_deposit.sort_values('FDR_Opening_Date')
@@ -244,7 +247,7 @@ fig_date_deposit = px.line(
     x='FDR_Opening_Date',
     y='Deposited_Amount',
     title="Total Daily Deposited Amount Over Time",
-    labels={'Deposited_Amount': 'Total Deposited Amount (BDT)', 'FDR_Opening_Date': 'Opening Date'},
+    labels={'Deposited_Amount': 'Total Deposited Amount', 'FDR_Opening_Date': 'Opening Date'},
     template='plotly_white'
 )
 fig_date_deposit.update_layout(
@@ -252,7 +255,7 @@ fig_date_deposit.update_layout(
 )
 display_chart_with_shadow(fig_date_deposit, "Deposited Amount by Opening Date")
 
-# Mature Date (Area Chart - Final Style)
+# NEW ROW: Mature Date (Area Chart - New Style)
 df_mature_deposit = df_full.groupby('Mature_Date')['Deposited_Amount'].sum().reset_index()
 df_mature_deposit = df_mature_deposit.sort_values('Mature_Date')
 
@@ -262,7 +265,7 @@ fig_mature_deposit = px.area(
     x='Mature_Date',
     y='Deposited_Amount',
     title="Total Maturity Amount Exposure Over Time",
-    labels={'Deposited_Amount': 'Total Matured Amount (BDT)', 'Mature_Date': 'Maturity Date'},
+    labels={'Deposited_Amount': 'Total Matured Amount', 'Mature_Date': 'Maturity Date'},
     line_shape='spline', # Smooth the line for better flow
     color_discrete_sequence=['#FF7F0E'], # Distinct color for the area
     template='plotly_white'
@@ -270,13 +273,13 @@ fig_mature_deposit = px.area(
 fig_mature_deposit.update_layout(
     yaxis={'tickformat': FULL_NUMBER_FORMAT} 
 )
-display_chart_with_shadow(fig_mature_deposit, "Deposited Amount by Mature Date (Area Chart)")
+display_chart_with_shadow(fig_mature_deposit, "Deposited Amount by Mature Date")
 
 
 st.markdown("---")
 
 # --- 3rd: Prediction / Forecasting (Static with Shadow) ---
-st.header("3. Deposited Amount Next Month Prediction")
+st.header("Deposited Amount Next Month Prediction")
 
 # Aggregate data by date
 df_daily = df_full.groupby('FDR_Opening_Date')['Deposited_Amount'].sum().reset_index()
@@ -334,7 +337,7 @@ if len(df_daily) > 1:
         y='Amount',
         color='Type',
         title='Daily Deposit Amount Forecast (Historical vs. Predicted)',
-        labels={'Amount': 'Deposited Amount (BDT)', 'FDR_Opening_Date': 'Date'},
+        labels={'Amount': 'Deposited Amount', 'FDR_Opening_Date': 'Date'},
         template='plotly_white'
     )
     fig_forecast.update_layout(
