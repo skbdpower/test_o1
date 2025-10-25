@@ -10,3 +10,4 @@ prophet
 seaborn
 matplotlib
 statsmodels
+streamlit-extras
