@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import date, timedelta
-from streamlit_extras.metric_cards import style_metric_cards
+from streamlit_extras.metric_cards import style_metric_cards 
 import numpy as np
 import warnings
 
@@ -10,35 +10,28 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # DEFAULT HEIGHT FOR PLOTS TO PREVENT INTERFERENCE
-DEFAULT_PLOT_HEIGHT = 350 # Slightly taller plots for better look
+DEFAULT_PLOT_HEIGHT = 350 
 
 
-# --- Helper Function for Styled Plots (FINAL STATIC FIX) ---
+# --- Helper Function for Styled Plots ---
 
 def render_styled_chart(header_text, chart_obj):
     """Wraps subheader and Altair chart in a div with a clean box-shadow style.
-    Ensures the chart is **STATIC and NO MOUSE-WHEEL INTERACTION**."""
+    Ensures the chart is STATIC and NO MOUSE-WHEEL INTERACTION."""
     st.subheader(header_text)
     # Custom CSS style for the plot box
     st.markdown(f"""
         <div style="border-radius: 10px; box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.08); padding: 15px; background-color: #FFFFFF; margin-bottom: 20px;">
     """, unsafe_allow_html=True)
     
-    # 🚨 CRITICAL STATIC FIX: 
-    # 1. Set explicit height on properties.
-    # 2. Set continuousHeight to fix vertical scaling.
-    # 3. Use interactive(False) to disable ALL mouse inputs (zoom, pan, scroll).
     final_chart = chart_obj.properties(
-        # Set a fixed height property on the chart
         height=DEFAULT_PLOT_HEIGHT 
     ).configure_view(
-        # Fix the continuous (Y) axis height to prevent vertical scaling/zoom
         continuousHeight=DEFAULT_PLOT_HEIGHT, 
         stroke=None
     )
     
-    # CRITICAL: Chain interactive(False) immediately before st.altair_chart
-    # This disables the unwanted mouse-wheel zoom/pan functionality.
+    # Disable all mouse interactivity
     st.altair_chart(final_chart.interactive(False), use_container_width=True, theme=None)
     
     st.markdown("</div>", unsafe_allow_html=True)
@@ -49,27 +42,27 @@ def render_styled_chart(header_text, chart_obj):
 # Page layout
 st.set_page_config(page_title="Loan Analytics", page_icon="🌎", layout="wide")
 
-# Define a professional, new-style color palette (NEW STYLE)
+# Define color palette
 PALETTE = {
-    'loan_primary': '#185ADB',   # Teal Accent
-    'outstanding': '#00B894',    # Green
-    'due': '#D63031',            # Red
-    'insurance': '#FFC947',      # Gold Accent
-    'demographic': '#6C5CE7',    # Purple
-    'text_dark': '#FFFFFF',      # KPI TEXT COLOR (White)
-    'card_bg': '#0A1931',        # Dark Navy Blue for KPIs
+    'loan_primary': '#185ADB',   
+    'outstanding': '#00B894',    
+    'due': '#D63031',            
+    'insurance': '#FFC947',      
+    'demographic': '#6C5CE7',    
+    'text_dark': '#FFFFFF',      
+    'card_bg': '#0A1931',        
     'shadow': '0 6px 15px rgba(0, 0, 0, 0.08)' 
 }
 
 
-# **Caching the data loading and initial cleaning to solve slow load times**
+# Caching the data loading and initial cleaning
 @st.cache_data
 def load_data():
     try:
-        # Load the Excel data file
+        # Load the Excel data file (assuming 'openpyxl' is installed, which was implied by the previous error)
         df = pd.read_excel("loandisbursereport-sep_2025.xlsx") 
         
-        # Clean and prepare columns
+        # Data Cleaning and preparation steps (same as before)
         df['Disbursment_Date'] = pd.to_datetime(df['Disbursment_Date'])
         df['First_Repayment_Date'] = pd.to_datetime(df['First_Repayment_Date'], errors='coerce') 
         
@@ -78,14 +71,12 @@ def load_data():
         df['Insurance_Amount'] = pd.to_numeric(df['Insurance_Amount'], errors='coerce').fillna(0)
         df['Due_Amount_Pr'] = pd.to_numeric(df['Due_Amount_Pr'], errors='coerce').fillna(0)
         
-        # NEW CLEANING FOR NEW PLOTS
         df['Sc_Rate'] = df['Sc_Rate'].astype(str).str.replace('%', '').str.strip()
         df['Sc_Rate'] = pd.to_numeric(df['Sc_Rate'], errors='coerce').fillna(0)
         df['No_Of_Installment'] = pd.to_numeric(df['No_Of_Installment'], errors='coerce').fillna(0)
         df['Borrower_Age'] = pd.to_numeric(df['Borrower_Age'], errors='coerce').fillna(0)
         df['Loan_Cycle'] = pd.to_numeric(df['Loan_Cycle'], errors='coerce').fillna(0) 
         
-        # Create Age Bins for Loan Amount by Age Group 
         bins = [18, 25, 35, 45, 55, 100]
         labels = ['18-24', '25-34', '35-44', '45-54', '55+']
         df['Age_Group'] = pd.cut(df['Borrower_Age'], bins=bins, labels=labels, right=False)
@@ -101,11 +92,16 @@ def load_data():
 df = load_data()
 
 
-# --- Title and Image ---
+# --- Title and Image (FIX APPLIED HERE) ---
 st.title("Loan Disbursement SEP-2025 Portfolio Analytics Dashboard")
-st.image("tmss.jpg", width=150) # Assuming 'tmss.jpg' is the logo you mentioned
 
-# load CSS Style (Custom CSS to force KPI text white on Dark Navy card background)
+# 🚨 FIX: Safely attempt to load the image.
+try:
+    st.image("tmss.jpg", width=150) 
+except Exception:
+    st.warning("⚠️ Warning: Could not find or load the logo file 'tmss.jpg'. Continuing without image.")
+
+# load CSS Style (Custom CSS)
 st.markdown(f"""
     <style>
         /* Change metric labels to white */
@@ -125,8 +121,7 @@ st.markdown(f"""
 """, unsafe_allow_html = True)
 
 
-# Apply a global filter for the entire dashboard (e.g., all time)
-df_selection = df.copy() # Use the full loaded data since filters are off
+df_selection = df.copy() 
 
 
 # --- Metrics (KPIs) ---
@@ -142,21 +137,13 @@ median_loan_amount = df_selection.Loan_Amount.median()
 
 col1, col2, col3, col4 = st.columns(4)
 
-# ************************ KPI LABELS ************************
-# 1. Total Amount Sum (New Primary KPI)
+# KPI LABELS
 col1.metric(label="💰 Total Loan Amount Disbursed", value=f"{sum_loan_amount:,.0f}", delta="Total Sum") 
-
-# 2. Number of Disbursed Loans
 col2.metric(label="✅ Number of Disbursed Loans", value=total_loans)
-
-# 3. Highest Disbursement (Max)
 col3.metric(label="📈 Highest Disbursement", value=f"{max_loan_amount:,.0f}", delta=f"Median: {median_loan_amount:,.0f}")
-
-# 4. Lowest Disbursement (Min)
 col4.metric(label="📉 Lowest Disbursement", value=f"{min_loan_amount:,.0f}")
-# ************************ END KPI LABELS ************************
 
-# Apply custom metric card style with the new Dark Navy background and Gold/Orange accent
+# Apply custom metric card style
 style_metric_cards(
     background_color=PALETTE['card_bg'], 
     border_left_color=PALETTE['insurance'], 
@@ -183,7 +170,7 @@ AMOUNT_AXIS_TITLE_LOAN = 'Loan Amount'
 col_s1_1, col_s1_2 = st.columns(2)
 
 with col_s1_1:
-    # 1. Loan_Amount vs Outstanding_Pr by Divisional_Office (Normalized Stacked Bar Chart - Style Bar Chart)
+    # 1. Loan_Amount vs Outstanding_Pr by Divisional_Office (Normalized Stacked Bar Chart)
     office_summary = df_selection.groupby('Divisional_Office')[['Loan_Amount', 'Outstanding_Pr']].sum().reset_index()
     chart_data_comparison = office_summary.melt(
         'Divisional_Office', var_name='Metric', value_name='Amount'
@@ -192,11 +179,10 @@ with col_s1_1:
     )
     
     comparison_chart = alt.Chart(chart_data_comparison).mark_bar().encode(
-        # Use stack='normalize' on the X-axis for a 100% stacked bar chart
         x=alt.X('Amount:Q', stack='normalize', title='Proportion of Total Principal Metrics', axis=alt.Axis(format='%')), 
         y=alt.Y('Divisional_Office:N', title='Divisional Office', sort=alt.EncodingSortField(field="Amount", op="sum", order='descending')),
         color=alt.Color('Metric:N', scale=alt.Scale(range=[PALETTE['loan_primary'], PALETTE['outstanding']])),
-        order=alt.Order('Metric:N', sort='ascending'), # Ensure consistent stacking order
+        order=alt.Order('Metric:N', sort='ascending'), 
         tooltip=[
             'Divisional_Office', 
             alt.Tooltip('Metric:N', title='Metric'),
@@ -272,11 +258,9 @@ with col_s2_2:
 # 5. Top BorrowerCode Divisional_Office-wise loan amount (Stacked Bar Chart)
 top_borrowers_overall = df_selection.groupby(['BorrowerCode', 'Divisional_Office'])['Loan_Amount'].sum().reset_index()
 
-# Get the top 25 BorrowerCodes by their total Loan Amount across all offices
 top_25_codes = top_borrowers_overall.groupby('BorrowerCode')['Loan_Amount'].sum().nlargest(25).index.tolist()
 df_top_25_office = top_borrowers_overall[top_borrowers_overall['BorrowerCode'].isin(top_25_codes)]
 
-# Set a slightly larger height for the full-width borrower chart
 chart_top_borrower_office = alt.Chart(df_top_25_office).mark_bar().encode(
     x=alt.X('Loan_Amount:Q', title=AMOUNT_AXIS_TITLE_SHORT, axis=alt.Axis(format=AMOUNT_FORMAT)),
     y=alt.Y('BorrowerCode:N', sort=top_25_codes, title='Borrower Code'), 
@@ -297,7 +281,6 @@ with col_s3_1:
     
     top_members['Borrower_Code_Info'] = top_members['BorrowerCode'] + ' (' + top_members['Borrower_Age'].round(0).astype(int).astype(str) + ')'
     
-    # Use a sequential color scale for age
     age_color_scale = alt.Scale(domain=[top_members['Borrower_Age'].min(), top_members['Borrower_Age'].max()], range=['#FFC947', '#D63031'])
 
     chart_top_members = alt.Chart(top_members).mark_bar().encode(
@@ -309,7 +292,7 @@ with col_s3_1:
             alt.Tooltip('Total_Loan_Amount:Q', format=AMOUNT_FORMAT, title='Loan Amount'),
             alt.Tooltip('Borrower_Age:Q', format='.1f', title='Age')
         ]
-    ).properties(title="Top 25 Borrower Codes by Total Loan Amount (Colored by Age)", height=DEFAULT_PLOT_HEIGHT + 100, width='container') # Slightly taller
+    ).properties(title="Top 25 Borrower Codes by Total Loan Amount (Colored by Age)", height=DEFAULT_PLOT_HEIGHT + 100, width='container') 
     
     render_styled_chart("Top 25 Borrower Codes by Total Loan Amount", chart_top_members)
 
@@ -322,7 +305,7 @@ with col_s3_2:
         x=alt.X('Age_Group:N', title='Age Group', sort=age_sort_order),
         y=alt.Y('Loan_Amount:Q', title=AMOUNT_AXIS_TITLE_SHORT, axis=alt.Axis(format=AMOUNT_FORMAT)),
         tooltip=['Age_Group', alt.Tooltip('Loan_Amount:Q', format=AMOUNT_FORMAT, title='Loan Amount')]
-    ).properties(title="Total Loan Amount by Age Group", height=DEFAULT_PLOT_HEIGHT + 100, width='container') # Slightly taller
+    ).properties(title="Total Loan Amount by Age Group", height=DEFAULT_PLOT_HEIGHT + 100, width='container') 
     
     render_styled_chart("Loan Amount by Borrower Age Group", chart_age)
 
@@ -401,7 +384,6 @@ with col_s5_1:
     cycle_summary = df_selection.groupby('Loan_Cycle')['Loan_Amount'].sum().reset_index()
     
     chart_cycle = alt.Chart(cycle_summary).mark_bar(color=PALETTE['loan_primary']).encode(
-        # Sorting by the numeric Loan_Cycle field
         x=alt.X('Loan_Cycle:O', title='Loan Cycle', sort='ascending'), 
         y=alt.Y('Loan_Amount:Q', title=AMOUNT_AXIS_TITLE_SHORT, axis=alt.Axis(format=AMOUNT_FORMAT)), 
         tooltip=['Loan_Cycle', alt.Tooltip('Loan_Amount:Q', format=AMOUNT_FORMAT, title='Loan Amount')]
@@ -503,3 +485,8 @@ with col_s6_2:
 # FOOTER
 # ==================================
 st.markdown("---")
+st.markdown("""
+<div style='text-align:center; color: #777; padding-top:1em; font-size: 0.85em;'>
+    **Loan Disbursement Portfolio Analytics Dashboard** | Data Source: loandisbursereport-sep_2025.xlsx
+</div>
+""", unsafe_allow_html=True)
