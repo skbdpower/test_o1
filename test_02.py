@@ -21,13 +21,13 @@ def render_styled_chart(header_text, chart_obj):
     # Custom CSS style for the plot box
     st.markdown(f"""
         <div style="border-radius: 10px; box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.08); padding: 15px; background-color: #FFFFFF; margin-bottom: 20px;">
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=False)
     
     # 🚨 CRITICAL: interactive(False) ensures zoom/pan is OFF for a static dashboard,
     # preventing mouse wheel zooming and dragging.
-    st.altair_chart(chart_obj.interactive(False), use_container_width=True, theme=None)
+    st.altair_chart(chart_obj.interactive(False), use_container_width=False, theme=None)
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=False)
     # Removed the extra horizontal rule inside the render function
 
 
