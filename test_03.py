@@ -163,7 +163,7 @@ high_risk_zones = len(zone_risk[zone_risk["Overdue_Ratio"] > 10]) # Zones with O
 top_zone_loan = df.groupby("Zone")["SEP_2025_ Month_Loan"].sum().idxmax()
 
 # --- 4. Dashboard Title and Sidebar Filters ---
-st.title("Consolitidated Balancing Domain - Zone Performance Dashboard")
+st.title("Consolitidated Balancing SEP-2025 Domain - Zone Performance Dashboard")
 st.markdown("A deep dive into key financial, operational, and scheme-specific metrics across domains and zones.")
 
 # Sidebar Filters
