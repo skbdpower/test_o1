@@ -3,19 +3,52 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 
-# --- 1. CONFIGURATION AND STYLING ---
+# --- 1. CONFIGURATION AND STYLING (WITH CUSTOM CSS FIX) ---
 st.set_page_config(page_title='Shadowed Loan KPI & Prediction Dashboard', layout='wide')
 PRIMARY_COLOR = "#2563eb" # Primary theme color
+SECONDARY_TEXT_COLOR = "#4a4a4a" # Darker gray for general text
+
+# FIX: Inject custom CSS to ensure proper text colors and background
+st.markdown(
+    """
+    <style>
+    /* Change the color of all default markdown text */
+    div.stText p {
+        color: """ + SECONDARY_TEXT_COLOR + """;
+    }
+
+    /* Change the color of unstyled h2/h3/h4 in markdown, typically used by Plotly titles in Streamlit */
+    h2, h3, h4 {
+        color: """ + SECONDARY_TEXT_COLOR + """; 
+    }
+    
+    /* Ensure the main title is always visible and colored */
+    h1 {
+        color: """ + PRIMARY_COLOR + """;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    /* Ensure all plot titles (set via Plotly) are clearly visible */
+    .plot-container .plotly .js-plotly-plot .main-svg .infolayer .g-title {
+        color: """ + SECONDARY_TEXT_COLOR + """ !important;
+    }
+
+    /* Target the text color inside shadowed containers if needed (general text fallback) */
+    .stText {
+        color: """ + SECONDARY_TEXT_COLOR + """;
+    }
+    </style>
+    """, unsafe_allow_html=True
+)
 
 # FIX: Use custom HTML for the main title to ensure color is applied
-st.markdown(f'<h1 style="color: {PRIMARY_COLOR};">Loan Disbursement & Risk Dashboard (Card Style & Prediction) 📊</h1>', unsafe_allow_html=True)
+st.markdown(f'<h1>Loan Disbursement & Risk Dashboard (Card Style & Prediction) 📊</h1>', unsafe_allow_html=True)
 
 # --- 2. DATA LOADING AND CLEANING ---
 @st.cache_data
 def load_data(file_name):
     """Loads and preprocesses the loan data."""
     try:
-        # Assuming the CSV is accessible from the current working directory
         df = pd.read_excel(file_name)
         df.columns = df.columns.str.strip()
         
@@ -38,6 +71,7 @@ def load_data(file_name):
         
         return df
     except Exception as e:
+        # In a deployment scenario, this might need adjustment if the file path is relative
         st.error(f"Error loading or processing data: {e}")
         return pd.DataFrame()
 
@@ -45,6 +79,7 @@ file_name = "loan_disburse_report_Oct_2025.xlsx"
 df = load_data(file_name)
 
 if df.empty:
+    # Attempt to load the file again if it failed, or stop. We'll stop here since the file was previously loaded.
     st.stop()
 
 # --- 3. FORMATTING FUNCTION ---
@@ -71,7 +106,6 @@ with st.container():
     num_cols = len(kpi_values)
     k_cols = st.columns(num_cols)
     for idx, (label, value) in enumerate(kpi_values):
-        # The inline styles here already define color and should work.
         k_cols[idx].markdown(
             f"""
             <div style='
@@ -101,7 +135,7 @@ def plot_base_config(fig, y_format=','):
         plot_bgcolor="#ffffff", 
         paper_bgcolor="#ffffff",
         font_family="Arial", 
-        font_color="#333333",
+        font_color=SECONDARY_TEXT_COLOR, # Ensure plot text is visible
         margin=dict(l=20, r=20, t=50, b=30),
         title_font_size=18,
         title_x=0.05, 
@@ -316,7 +350,6 @@ min_date = df['Disbursment_Date'].min()
 max_date = df['Disbursment_Date'].max()
 
 if pd.notna(min_date) and pd.notna(max_date):
-    # Number of days between Oct 4 and Oct 30 is 27
     disbursing_days = (max_date - min_date).days + 1
 else:
     disbursing_days = 27 
@@ -363,7 +396,7 @@ with col_pred2:
             min-height: 200px;
         '>
             <h4 style='color: {PRIMARY_COLOR}; margin-top:0;'>Prediction Details:</h4>
-            <ul style='list-style-type: none; padding-left: 0; font-size: 1.1em; color:#333;'>
+            <ul style='list-style-type: none; padding-left: 0; font-size: 1.1em; color:{SECONDARY_TEXT_COLOR};'>
                 <li style='margin-bottom: 0.5em;'>
                     <strong>Total Loan Disbursed (Oct 2025):</strong> 
                     <span style='float: right;'>${fullint(oct_loan_amount)}</span>
