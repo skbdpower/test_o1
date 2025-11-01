@@ -5,8 +5,10 @@ import numpy as np
 
 # --- 1. CONFIGURATION AND STYLING ---
 st.set_page_config(page_title='Shadowed Loan KPI & Prediction Dashboard', layout='wide')
-st.title('📊 Loan Disbursement Report analysis Oct 2025 Dashboard and Prediction')
 PRIMARY_COLOR = "#2563eb" # Primary theme color
+
+# FIX: Use custom HTML for the main title to ensure color is applied
+st.markdown(f'<h1 style="color: {PRIMARY_COLOR};">Loan Disbursement & Risk Dashboard (Card Style & Prediction) 📊</h1>', unsafe_allow_html=True)
 
 # --- 2. DATA LOADING AND CLEANING ---
 @st.cache_data
@@ -63,18 +65,20 @@ kpi_values = [
     ("Total Due Principal", fullint(df['Due_Amount_Pr'].sum())),
 ]
 
-st.markdown("### Key Performance Indicators")
+# FIX: Use custom HTML for the KPI section title
+st.markdown(f'<h3 style="color: {PRIMARY_COLOR};">Key Performance Indicators</h3>', unsafe_allow_html=True)
 with st.container():
     num_cols = len(kpi_values)
     k_cols = st.columns(num_cols)
     for idx, (label, value) in enumerate(kpi_values):
+        # The inline styles here already define color and should work.
         k_cols[idx].markdown(
             f"""
             <div style='
                 background-color: #ffffff; 
                 border-radius: 12px;
                 border-left: 6px solid {PRIMARY_COLOR}; 
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); /* Deeper Shadow for KPI */
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); 
                 padding: 1.2em 0.5em 1.2em 0.5em; 
                 margin-bottom: 20px; 
                 min-width: 100px;
@@ -89,7 +93,7 @@ with st.container():
             """, unsafe_allow_html=True
         )
 
-# --- 5. PLOTTING FUNCTIONS (New Style & Shadow Wrapper) ---
+# --- 5. PLOTTING FUNCTIONS ---
 
 def plot_base_config(fig, y_format=','):
     """Applies common clean styling to all Plotly charts."""
@@ -126,10 +130,9 @@ def plot_bar(df_, x, y, title, color=PRIMARY_COLOR, orientation='v', n_top=None,
         hovertemplate=f"<b>%{{x}}</b><br>{y.replace('_', ' ')}: <b>%{{y:,.0f}}</b><extra></extra>"
     )
     
-    # ENHANCEMENT: ADD DATA LABELS (if requested)
     if kwargs.get('show_labels'):
         fig.update_traces(
-            text=df_sorted[y].apply(lambda v: f'{v:,.0f}'), # Format text label with commas
+            text=df_sorted[y].apply(lambda v: f'{v:,.0f}'),
             textposition='outside',
             cliponaxis=False, 
             textfont=dict(color="#333333", size=11, family="Arial")
@@ -166,10 +169,9 @@ def plot_line(df_, x, y, title, color=PRIMARY_COLOR):
     fig = plot_base_config(fig)
     return fig
 
-def display_card_plot(fig, container, title):
+def display_card_plot(fig, container, chart_title):
     """Wraps a Plotly figure in a shadowed HTML container."""
     with container:
-        # st.markdown(f"#### {title}") # Title moved inside the card
         # Custom HTML to create a shadowed card around the plot
         st.markdown(
             f"""
@@ -177,7 +179,7 @@ def display_card_plot(fig, container, title):
                 background-color: #ffffff; 
                 border-radius: 12px;
                 padding: 10px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Shadow for plot card */
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
                 margin-bottom: 20px;
                 height: 100%;
             '>
@@ -189,8 +191,8 @@ def display_card_plot(fig, container, title):
 
 # --- 6. DASHBOARD LAYOUT AND PLOT GENERATION (All Shadowed) ---
 
-st.markdown("---")
-st.markdown("### Loan Disbursement Analysis")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
+st.markdown(f'<h3 style="color: {PRIMARY_COLOR};">Loan Disbursement Analysis</h3>', unsafe_allow_html=True)
 
 # Row 1: Frequency, Outstanding/Loan, Insurance
 col1, col2, col3 = st.columns(3)
@@ -210,7 +212,7 @@ div_ins = df.groupby('Divisional_Office')['Insurance_Amount'].sum().reset_index(
 fig3 = plot_bar(div_ins, "Divisional_Office", "Insurance_Amount", "3. Insurance Amount by Division", color="#10b981")
 display_card_plot(fig3, col3, "3. Insurance Amount by Division")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 # Row 2: Divisional Metrics, Top Zone Office, Gender
 col4, col5 = st.columns(2)
@@ -225,7 +227,7 @@ zone_sum = df.groupby('Zone_Office')['Loan_Amount'].sum().reset_index()
 fig5 = plot_bar(zone_sum, "Zone_Office", "Loan_Amount", "5. Top 10 Zone Offices by Loan Amount", color="#8b5cf6", n_top=10)
 display_card_plot(fig5, col5, "5. Top 10 Zone Offices by Loan Amount")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 col6, col7 = st.columns(2)
 
@@ -240,7 +242,7 @@ admit_count['Admission_Date'] = admit_count['Admission_Date'].astype(str)
 fig7 = plot_line(admit_count, "Admission_Date", "BorrowerCode", "7. New Borrowers (Count) Over Time", color="#059669")
 display_card_plot(fig7, col7, "7. New Borrower Count Over Time")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 # Row 4: Time Series, Age, Purpose
 col8, col9 = st.columns(2)
@@ -257,7 +259,7 @@ age_loan_mean['Loan_Amount'] = age_loan_mean['Loan_Amount'].fillna(0)
 fig9 = plot_bar(age_loan_mean, 'Age_Group', 'Loan_Amount', "9. Average Loan Amount by Borrower Age Group", color="#f97316")
 display_card_plot(fig9, col9, "9. Average Loan Amount by Borrower Age Group")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 col10, col11 = st.columns(2)
 
@@ -272,7 +274,7 @@ cycle_sum['Loan_Cycle'] = cycle_sum['Loan_Cycle'].astype(str)
 fig11 = plot_bar(cycle_sum, "Loan_Cycle", "Loan_Amount", "11. Loan Amount by Loan Cycle", color="#be185d", show_labels=True)
 display_card_plot(fig11, col11, "11. Loan Cycle by Loan Amount")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 # Row 6: Loan Product, Sc Rate, Installment, Disbursement Type
 col12, col13 = st.columns(2)
@@ -287,7 +289,7 @@ sc_sum = df.groupby('Sc_Rate')['Loan_Amount'].sum().reset_index()
 fig13 = plot_bar(sc_sum, "Sc_Rate", "Loan_Amount", "13. Loan Amount by Service Charge Rate", color="#f472b6", show_labels=True)
 display_card_plot(fig13, col13, "13. Service Charge Rate by Loan Amount")
 
-st.markdown("---")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
 
 col14, col15 = st.columns(2)
 
@@ -305,20 +307,19 @@ display_card_plot(fig15, col15, "15. Loan Count by Disbursement Type")
 
 # --- 7. LOAN AMOUNT PREDICTION MODEL ---
 
-st.markdown("---")
-st.markdown("### Nov-2025 Month Loan Disbursement Prediction 🔮")
+st.markdown("<hr style='border: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
+st.markdown(f'<h3 style="color: {PRIMARY_COLOR};">Next Month Loan Disbursement Prediction 🔮</h3>', unsafe_allow_html=True)
 
 # Calculate prediction values
 oct_loan_amount = df['Loan_Amount'].sum()
 min_date = df['Disbursment_Date'].min()
 max_date = df['Disbursment_Date'].max()
 
-# Only 27 unique days in the Oct 2025 data (Oct 4 to Oct 30)
 if pd.notna(min_date) and pd.notna(max_date):
+    # Number of days between Oct 4 and Oct 30 is 27
     disbursing_days = (max_date - min_date).days + 1
 else:
-    # Fallback to 30 days if dates are missing, though computation verified 27 days
-    disbursing_days = 30 
+    disbursing_days = 27 
     
 avg_daily_disbursement = oct_loan_amount / disbursing_days
 days_in_november = 30
@@ -362,25 +363,28 @@ with col_pred2:
             min-height: 200px;
         '>
             <h4 style='color: {PRIMARY_COLOR}; margin-top:0;'>Prediction Details:</h4>
-            <ul style='list-style-type: none; padding-left: 0; font-size: 1.1em;'>
+            <ul style='list-style-type: none; padding-left: 0; font-size: 1.1em; color:#333;'>
                 <li style='margin-bottom: 0.5em;'>
                     <strong>Total Loan Disbursed (Oct 2025):</strong> 
-                    <span style='float: right;'>{fullint(oct_loan_amount)}</span>
+                    <span style='float: right;'>${fullint(oct_loan_amount)}</span>
                 </li>
                 <li style='margin-bottom: 0.5em;'>
                     <strong>Active Disbursing Days:</strong> 
                     <span style='float: right;'>{disbursing_days} days</span>
                 </li>
                 <li style='margin-bottom: 0.5em;'>
-                    <strong>Avg Daily Disbursement:</strong> 
-                    <span style='float: right;'>{fullint(avg_daily_disbursement)}</span>
+                    <strong>Avg Daily Disbursement (ADD):</strong> 
+                    <span style='float: right;'>${fullint(avg_daily_disbursement)}</span>
                 </li>
                 <li style='margin-bottom: 0.5em; padding-top: 5px; border-top: 1px solid #eee;'>
                     <strong>Predicted Nov Total (30 days):</strong> 
-                    <span style='float: right; font-weight: 700; color: {PRIMARY_COLOR};'>{fullint(predicted_nov_amount)}</span>
+                    <span style='float: right; font-weight: 700; color: {PRIMARY_COLOR};'>${fullint(predicted_nov_amount)}</span>
                 </li>
             </ul>
         </div>
         """, unsafe_allow_html=True
     )
     
+st.markdown("<div style='text-align:center; color: #999; padding-top:2em;'>"
+    "Dashboard Complete | All charts and KPIs are displayed in modern, shadowed card containers."
+    "</div>", unsafe_allow_html=True)
