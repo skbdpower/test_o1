@@ -1,235 +1,214 @@
 import streamlit as st
+import plotly.graph_objects as go
 import pandas as pd
-import plotly.express as px
 import numpy as np
 
-# --- 1. CONFIGURATION AND LIGHT THEME ---
-st.set_page_config(page_title='Loan KPI & Prediction Dashboard', layout='wide')
+# --- PAGE CONFIGURATION ---
+st.set_page_config(
+    page_title='Loan KPI & Prediction Dashboard',
+    layout='wide',
+    initial_sidebar_state='expanded'
+)
 
-# --- THEME COLORS ---
-PRIMARY_COLOR = "#1d4ed8"     # Deep Indigo Blue
-SECONDARY_COLOR = "#f8fafc"   # Light Gray Background
-TEXT_COLOR = "#1f2937"        # Dark Gray Text
-CARD_BG = "#ffffff"           # White Cards
-SHADOW = "0 4px 12px rgba(0, 0, 0, 0.08)"  # Soft Shadow
+# --- LIGHT THEME COLORS ---
+PRIMARY_COLOR = "#1d4ed8"        # Indigo blue
+BACKGROUND_COLOR = "#f9fafb"     # Light gray background
+CARD_BG = "#ffffff"              # White card background
+TEXT_COLOR = "#111827"           # Dark text (almost black)
+BORDER_COLOR = "#e5e7eb"         # Light gray border
+SHADOW = "0 4px 12px rgba(0, 0, 0, 0.08)"
 
-# --- APPLY LIGHT THEME CSS ---
+
+# --- CUSTOM CSS OVERRIDES ---
 st.markdown(
     f"""
     <style>
+    /* Global background and text */
     .stApp {{
-        background-color: {SECONDARY_COLOR};
+        background-color: {BACKGROUND_COLOR};
         color: {TEXT_COLOR};
     }}
 
-    /* Main title styling */
+    h1, h2, h3, h4, h5, h6, p, span, div {{
+        color: {TEXT_COLOR} !important;
+        text-shadow: none !important;
+    }}
+
+    /* Main title */
     h1 {{
-        color: {PRIMARY_COLOR};
-        font-weight: 800;
-        text-shadow: none;
+        color: {PRIMARY_COLOR} !important;
+        font-weight: 800 !important;
     }}
 
-    h2, h3, h4 {{
-        color: {TEXT_COLOR};
-        font-weight: 700;
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] {{
+        background-color: {CARD_BG} !important;
+        border-right: 1px solid {BORDER_COLOR};
+    }}
+    section[data-testid="stSidebar"] * {{
+        color: {TEXT_COLOR} !important;
     }}
 
-    /* KPI and Chart Card Containers */
+    /* Shadow card container */
     .shadow-card {{
         background-color: {CARD_BG};
-        border-radius: 12px;
-        padding: 1em;
+        border-radius: 14px;
+        padding: 1.2em;
         box-shadow: {SHADOW};
-        border: 1px solid #e5e7eb;
-        margin-bottom: 1em;
+        border: 1px solid {BORDER_COLOR};
+        color: {TEXT_COLOR};
+        margin-bottom: 1.2em;
     }}
 
-    /* Sidebar */
-    section[data-testid="stSidebar"] {{
-        background-color: {CARD_BG};
-        border-right: 1px solid #e5e7eb;
+    /* Buttons */
+    div.stButton > button {{
+        background-color: {PRIMARY_COLOR};
+        color: white !important;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5em 1em;
+        font-weight: 600;
+        transition: 0.2s ease;
+    }}
+    div.stButton > button:hover {{
+        background-color: #2563eb;
+        color: white !important;
     }}
 
-    /* Plot titles */
-    .plotly .main-svg .infolayer .g-title {{
+    /* Metrics */
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"] {{
+        color: {TEXT_COLOR} !important;
+    }}
+
+    /* Inputs */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > div {{
+        color: {TEXT_COLOR} !important;
+    }}
+
+    /* Tables */
+    table, th, td {{
+        color: {TEXT_COLOR} !important;
+        background-color: {CARD_BG} !important;
+    }}
+
+    /* Plotly text override */
+    .plotly .main-svg,
+    .plotly text,
+    g.xtick text, g.ytick text, .g-title, .g-legend text {{
         fill: {TEXT_COLOR} !important;
+        color: {TEXT_COLOR} !important;
     }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# --- 2. PAGE TITLE ---
-st.markdown(f"<h1>Loan Disbursement & Risk Dashboard (Light Theme) 🌤️</h1>", unsafe_allow_html=True)
 
-# --- 3. DATA LOADING ---
-@st.cache_data
-def load_data(file_name):
-    try:
-        df = pd.read_excel(file_name)
-        df.columns = df.columns.str.strip()
-        df['Disbursment_Date'] = pd.to_datetime(df['Disbursment_Date'], errors='coerce')
-        df['Admission_Date'] = pd.to_datetime(df['Admission_Date'], errors='coerce')
-        df.rename(columns={'Cycle': 'Loan_Cycle', 'Loan Amount': 'Loan_Amount', 'Age': 'Borrower_Age'}, inplace=True)
-        numeric_cols = ['Loan_Amount', 'Insurance_Amount', 'Outstanding_Pr', 'Due_Amount_Pr', 'Borrower_Age']
-        for col in numeric_cols:
-            if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        bins = [18, 25, 35, 45, 55, 100]
-        labels = ['18-25', '26-35', '36-45', '46-55', '56+']
-        df['Age_Group'] = pd.cut(df['Borrower_Age'], bins=bins, labels=labels, include_lowest=True)
-        return df
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        return pd.DataFrame()
+# --- SIDEBAR FILTERS ---
+st.sidebar.title("⚙️ Dashboard Controls")
+region = st.sidebar.selectbox("Select Region", ["All", "North", "South", "East", "West"])
+month = st.sidebar.selectbox("Select Month", ["January", "February", "March", "April", "May"])
+st.sidebar.button("Apply Filters")
 
-file_name = "loan_disburse_report_Oct_2025.xlsx"
-df = load_data(file_name)
-if df.empty:
-    st.stop()
 
-# --- 4. HELPER FUNCTION ---
-def fullint(val):
-    if pd.isnull(val) or val == 0:
-        return "0"
-    val = float(val)
-    return "{:,}".format(int(val)) if val.is_integer() else "{:,.2f}".format(val)
+# --- MAIN PAGE TITLE ---
+st.title("📊 Loan KPI & Prediction Dashboard")
 
-# --- 5. KPI SECTION ---
-kpi_values = [
-    ("Total Loan Disbursed", fullint(df['Loan_Amount'].sum())),
-    ("Number of Loans", fullint(len(df))),
-    ("Avg Loan Amount", fullint(df['Loan_Amount'].mean())),
-    ("Total Insurance", fullint(df['Insurance_Amount'].sum())),
-    ("Outstanding Principal", fullint(df['Outstanding_Pr'].sum())),
-    ("Total Due Principal", fullint(df['Due_Amount_Pr'].sum())),
-]
 
-st.markdown(f'<h3 style="color:{PRIMARY_COLOR};">Key Performance Indicators</h3>', unsafe_allow_html=True)
-k_cols = st.columns(len(kpi_values))
-for idx, (label, value) in enumerate(kpi_values):
-    k_cols[idx].markdown(
-        f"""
-        <div class='shadow-card' style='text-align:center;'>
-            <div style='font-size:1em; color:{TEXT_COLOR}; font-weight:600;'>{label}</div>
-            <div style='font-size:1.8em; font-weight:700; color:{PRIMARY_COLOR}; margin-top:0.2em;'>{value}</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-# --- 6. PLOTTING HELPERS ---
-def plot_base_config(fig):
-    fig.update_layout(
-        plot_bgcolor=CARD_BG,
-        paper_bgcolor=CARD_BG,
-        font_color=TEXT_COLOR,
-        title_font_size=18,
-        margin=dict(l=20, r=20, t=50, b=30),
-        title_x=0.05,
-    )
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(gridcolor="#f1f5f9")
-    return fig
-
-def plot_bar(df_, x, y, title, color=PRIMARY_COLOR, n_top=None, show_labels=False):
-    df_ = df_.sort_values(y, ascending=False).head(n_top) if n_top else df_
-    fig = px.bar(df_, x=x, y=y, title=title, color_discrete_sequence=[color])
-    if show_labels:
-        fig.update_traces(texttemplate='%{y:,.0f}', textposition='outside')
-    fig = plot_base_config(fig)
-    fig.update_layout(showlegend=False)
-    return fig
-
-def plot_pie(df_, names, values, title):
-    fig = px.pie(df_, names=names, values=values, title=title,
-                 color_discrete_sequence=px.colors.qualitative.Pastel)
-    fig = plot_base_config(fig)
-    return fig
-
-def plot_line(df_, x, y, title, color=PRIMARY_COLOR):
-    fig = px.line(df_, x=x, y=y, title=title)
-    fig.update_traces(line=dict(width=3, color=color))
-    return plot_base_config(fig)
-
-def display_card_plot(fig, col):
-    with col:
-        st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
-        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        st.markdown("</div>", unsafe_allow_html=True)
-
-# --- 7. DASHBOARD CHARTS ---
-st.markdown(f"<h3 style='color:{PRIMARY_COLOR};'>Loan Disbursement Analysis</h3>", unsafe_allow_html=True)
-
+# --- KPI SECTION ---
+st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
-display_card_plot(plot_bar(df.groupby('Frequency')['Loan_Amount'].sum().reset_index(),
-                           "Frequency", "Loan_Amount", "Loan Amount by Frequency"), col1)
-display_card_plot(plot_bar(df.groupby('Divisional_Office')['Outstanding_Pr'].sum().reset_index(),
-                           "Divisional_Office", "Outstanding_Pr", "Outstanding Principal by Division", color="#ef4444"), col2)
-display_card_plot(plot_bar(df.groupby('Divisional_Office')['Insurance_Amount'].sum().reset_index(),
-                           "Divisional_Office", "Insurance_Amount", "Insurance by Division", color="#10b981"), col3)
+with col1:
+    st.metric(label="Total Loans", value="12,450")
+with col2:
+    st.metric(label="Active Clients", value="8,760")
+with col3:
+    st.metric(label="Portfolio (BDT)", value="৳ 3.4B")
+st.markdown("</div>", unsafe_allow_html=True)
 
-col4, col5 = st.columns(2)
-display_card_plot(plot_bar(df.groupby('Divisional_Office')['Loan_Amount'].sum().reset_index(),
-                           "Divisional_Office", "Loan_Amount", "Total Loan Amount by Division", color="#f59e0b"), col4)
-display_card_plot(plot_bar(df.groupby('Zone_Office')['Loan_Amount'].sum().reset_index(),
-                           "Zone_Office", "Loan_Amount", "Top 10 Zone Offices", color="#8b5cf6", n_top=10), col5)
 
-col6, col7 = st.columns(2)
-display_card_plot(plot_pie(df.groupby('Gender')['Loan_Amount'].sum().reset_index(),
-                           'Gender', 'Loan_Amount', 'Loan Amount by Gender'), col6)
-admit_count = df.groupby(df['Admission_Date'].dt.to_period('M')).agg({'BorrowerCode': 'nunique'}).reset_index()
-admit_count['Admission_Date'] = admit_count['Admission_Date'].astype(str)
-display_card_plot(plot_line(admit_count, "Admission_Date", "BorrowerCode", "New Borrowers Over Time", color="#059669"), col7)
+# --- SAMPLE DATA FOR CHARTS ---
+np.random.seed(42)
+months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
+disbursement = np.random.randint(100, 400, size=len(months))
+repayment = np.random.randint(80, 350, size=len(months))
+par = np.random.uniform(1.2, 4.5, size=len(months))
 
-col8, col9 = st.columns(2)
-disburse_sum = df.groupby(df['Disbursment_Date'].dt.to_period('D'))['Loan_Amount'].sum().reset_index()
-disburse_sum['Disbursment_Date'] = disburse_sum['Disbursment_Date'].astype(str)
-display_card_plot(plot_line(disburse_sum, "Disbursment_Date", "Loan_Amount", "Daily Loan Disbursement"), col8)
-display_card_plot(plot_bar(df.groupby('Age_Group')['Loan_Amount'].mean().reset_index(),
-                           'Age_Group', 'Loan_Amount', "Avg Loan Amount by Age Group", color="#f97316"), col9)
+df = pd.DataFrame({
+    "Month": months,
+    "Loan Disbursement": disbursement,
+    "Loan Repayment": repayment,
+    "PAR (%)": par
+})
 
-# --- 8. PREDICTION SECTION ---
-st.markdown(f"<h3 style='color:{PRIMARY_COLOR};'>Next Month Loan Disbursement Prediction 🔮</h3>", unsafe_allow_html=True)
 
-oct_loan_amount = df['Loan_Amount'].sum()
-min_date = df['Disbursment_Date'].min()
-max_date = df['Disbursment_Date'].max()
-disbursing_days = (max_date - min_date).days + 1 if pd.notna(min_date) and pd.notna(max_date) else 27
-avg_daily_disbursement = oct_loan_amount / disbursing_days
-predicted_nov_amount = avg_daily_disbursement * 30
-change = 'increase' if predicted_nov_amount > oct_loan_amount else 'decrease'
-change_color = '#059669' if predicted_nov_amount > oct_loan_amount else '#ef4444'
+# --- PORTFOLIO OVERVIEW CHART ---
+st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
+st.subheader("📈 Portfolio Overview")
 
-col_pred1, col_pred2 = st.columns([1, 2])
-with col_pred1:
-    st.markdown(
-        f"""
-        <div class='shadow-card' style='text-align:center;'>
-            <h4 style='color:{PRIMARY_COLOR};'>Predicted Change:</h4>
-            <div style='font-size:2em; font-weight:800; color:{change_color}; text-transform:uppercase;'>
-                {change}
-            </div>
-            <p style='color:{TEXT_COLOR};'>Predicted November value based on average October daily disbursement.</p>
-        </div>
-        """, unsafe_allow_html=True
-    )
+fig = go.Figure()
+fig.add_trace(go.Bar(
+    x=df["Month"],
+    y=df["Loan Disbursement"],
+    name="Disbursement",
+    marker_color=PRIMARY_COLOR
+))
+fig.add_trace(go.Bar(
+    x=df["Month"],
+    y=df["Loan Repayment"],
+    name="Repayment",
+    marker_color="#10b981"
+))
+fig.update_layout(
+    barmode='group',
+    title="Monthly Loan Disbursement vs Repayment",
+    plot_bgcolor=BACKGROUND_COLOR,
+    paper_bgcolor=CARD_BG,
+    font=dict(color=TEXT_COLOR),
+    legend=dict(
+        bgcolor=CARD_BG,
+        bordercolor=BORDER_COLOR,
+        borderwidth=1
+    ),
+    margin=dict(t=60, b=40)
+)
+st.plotly_chart(fig, use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-with col_pred2:
-    st.markdown(
-        f"""
-        <div class='shadow-card'>
-            <h4 style='color:{PRIMARY_COLOR};'>Prediction Details:</h4>
-            <ul style='list-style:none; padding-left:0; font-size:1.05em;'>
-                <li><strong>Total Loan (Oct 2025):</strong> <span style='float:right;'>{fullint(oct_loan_amount)}</span></li>
-                <li><strong>Disbursing Days:</strong> <span style='float:right;'>{disbursing_days}</span></li>
-                <li><strong>Avg Daily Disbursement:</strong> <span style='float:right;'>{fullint(avg_daily_disbursement)}</span></li>
-                <li style='border-top:1px solid #e5e7eb; padding-top:5px;'><strong>Predicted Nov Total (30 days):</strong> 
-                    <span style='float:right; color:{PRIMARY_COLOR}; font-weight:700;'>{fullint(predicted_nov_amount)}</span>
-                </li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True
-    )
 
-st.markdown("<div style='text-align:center; color:#9ca3af; padding-top:2em;'>Dashboard Complete — Light Theme ☀️</div>", unsafe_allow_html=True)
+# --- PAR TREND CHART ---
+st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
+st.subheader("📉 Portfolio at Risk (PAR) Trend")
+
+fig_par = go.Figure()
+fig_par.add_trace(go.Scatter(
+    x=df["Month"],
+    y=df["PAR (%)"],
+    mode='lines+markers',
+    name='PAR %',
+    line=dict(color="#ef4444", width=3)
+))
+fig_par.update_layout(
+    title="Monthly PAR Trend",
+    plot_bgcolor=BACKGROUND_COLOR,
+    paper_bgcolor=CARD_BG,
+    font=dict(color=TEXT_COLOR),
+    yaxis=dict(title="PAR (%)"),
+    legend=dict(
+        bgcolor=CARD_BG,
+        bordercolor=BORDER_COLOR,
+        borderwidth=1
+    ),
+    margin=dict(t=60, b=40)
+)
+st.plotly_chart(fig_par, use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+
+# --- DATA TABLE ---
+st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
+st.subheader("📋 Detailed Data View")
+st.dataframe(df.style.format({"PAR (%)": "{:.2f}"}))
+st.markdown("</div>", unsafe_allow_html=True)
