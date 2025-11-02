@@ -1,214 +1,216 @@
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
+import plotly.express as px
 import numpy as np
 
-# --- PAGE CONFIGURATION ---
+# --- 1. CONFIGURATION AND THEME ---
 st.set_page_config(
-    page_title='Loan KPI & Prediction Dashboard',
-    layout='wide',
-    initial_sidebar_state='expanded'
+    page_title="Loan KPI & Prediction Dashboard",
+    layout="wide",
+    page_icon="📊",
 )
 
-# --- LIGHT THEME COLORS ---
-PRIMARY_COLOR = "#1d4ed8"        # Indigo blue
-BACKGROUND_COLOR = "#f9fafb"     # Light gray background
-CARD_BG = "#ffffff"              # White card background
-TEXT_COLOR = "#111827"           # Dark text (almost black)
-BORDER_COLOR = "#e5e7eb"         # Light gray border
-SHADOW = "0 4px 12px rgba(0, 0, 0, 0.08)"
+# === THEME COLORS ===
+PRIMARY_COLOR = "#0284c7"           # Modern blue-teal
+SECONDARY_COLOR = "#0d9488"         # Greenish accent
+BACKGROUND_COLOR = "#f8fafc"        # Light background
+CARD_BACKGROUND = "#ffffff"
+TEXT_COLOR = "#1e293b"              # Dark slate text
+SUBTEXT_COLOR = "#475569"           # Muted gray text
 
+# --- 2. CUSTOM CSS FOR GLOBAL STYLING ---
+st.markdown(f"""
+<style>
+/* Global background and text */
+html, body, [class*="css"] {{
+    color: {TEXT_COLOR};
+    background-color: {BACKGROUND_COLOR};
+    font-family: "Inter", sans-serif;
+}}
 
-# --- CUSTOM CSS OVERRIDES ---
-st.markdown(
-    f"""
-    <style>
-    /* Global background and text */
-    .stApp {{
-        background-color: {BACKGROUND_COLOR};
-        color: {TEXT_COLOR};
-    }}
+/* Headings */
+h1, h2, h3, h4, h5 {{
+    color: {PRIMARY_COLOR};
+    font-weight: 700;
+}}
 
-    h1, h2, h3, h4, h5, h6, p, span, div {{
-        color: {TEXT_COLOR} !important;
-        text-shadow: none !important;
-    }}
+/* KPI Cards */
+.kpi-card {{
+    background: linear-gradient(135deg, {CARD_BACKGROUND} 60%, #e0f2fe 100%);
+    border-radius: 14px;
+    padding: 1.2em;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-left: 6px solid {PRIMARY_COLOR};
+    text-align: center;
+}}
+.kpi-label {{
+    color: {SUBTEXT_COLOR};
+    font-weight: 600;
+    font-size: 1em;
+}}
+.kpi-value {{
+    color: {SECONDARY_COLOR};
+    font-weight: 800;
+    font-size: 1.8em;
+    letter-spacing: 0.03em;
+}}
 
-    /* Main title */
-    h1 {{
-        color: {PRIMARY_COLOR} !important;
-        font-weight: 800 !important;
-    }}
+/* Chart Cards */
+.chart-card {{
+    background-color: {CARD_BACKGROUND};
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    padding: 1em;
+    margin-bottom: 20px;
+}}
 
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {{
-        background-color: {CARD_BG} !important;
-        border-right: 1px solid {BORDER_COLOR};
-    }}
-    section[data-testid="stSidebar"] * {{
-        color: {TEXT_COLOR} !important;
-    }}
+/* Section Titles */
+.section-title {{
+    color: {PRIMARY_COLOR};
+    font-size: 1.4em;
+    font-weight: 700;
+    margin-top: 30px;
+    margin-bottom: 10px;
+}}
 
-    /* Shadow card container */
-    .shadow-card {{
-        background-color: {CARD_BG};
-        border-radius: 14px;
-        padding: 1.2em;
-        box-shadow: {SHADOW};
-        border: 1px solid {BORDER_COLOR};
-        color: {TEXT_COLOR};
-        margin-bottom: 1.2em;
-    }}
+/* Prediction Cards */
+.pred-card {{
+    background-color: {CARD_BACKGROUND};
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 1.5em;
+}}
+</style>
+""", unsafe_allow_html=True)
 
-    /* Buttons */
-    div.stButton > button {{
-        background-color: {PRIMARY_COLOR};
-        color: white !important;
-        border-radius: 8px;
-        border: none;
-        padding: 0.5em 1em;
-        font-weight: 600;
-        transition: 0.2s ease;
-    }}
-    div.stButton > button:hover {{
-        background-color: #2563eb;
-        color: white !important;
-    }}
+# --- 3. TITLE ---
+st.markdown(f"<h1>💠 Loan Disbursement & Risk Dashboard</h1>", unsafe_allow_html=True)
+st.write("Modern visual analytics with clean theme and prediction insights.")
 
-    /* Metrics */
-    [data-testid="stMetricValue"],
-    [data-testid="stMetricLabel"] {{
-        color: {TEXT_COLOR} !important;
-    }}
+# --- 4. DATA LOADING ---
+@st.cache_data
+def load_data(file_name):
+    df = pd.read_excel(file_name)
+    df.columns = df.columns.str.strip()
 
-    /* Inputs */
-    .stTextInput > div > div > input,
-    .stSelectbox > div > div > div {{
-        color: {TEXT_COLOR} !important;
-    }}
+    df['Disbursment_Date'] = pd.to_datetime(df['Disbursment_Date'], errors='coerce')
+    df['Admission_Date'] = pd.to_datetime(df['Admission_Date'], errors='coerce')
 
-    /* Tables */
-    table, th, td {{
-        color: {TEXT_COLOR} !important;
-        background-color: {CARD_BG} !important;
-    }}
+    df.rename(columns={'Cycle': 'Loan_Cycle', 'Loan Amount': 'Loan_Amount', 'Age': 'Borrower_Age'}, inplace=True)
+    numeric_cols = ['Loan_Amount', 'Insurance_Amount', 'Outstanding_Pr', 'Due_Amount_Pr', 'Borrower_Age']
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    /* Plotly text override */
-    .plotly .main-svg,
-    .plotly text,
-    g.xtick text, g.ytick text, .g-title, .g-legend text {{
-        fill: {TEXT_COLOR} !important;
-        color: {TEXT_COLOR} !important;
-    }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+    bins = [18, 25, 35, 45, 55, 100]
+    labels = ['18-25', '26-35', '36-45', '46-55', '56+']
+    df['Age_Group'] = pd.cut(df['Borrower_Age'], bins=bins, labels=labels, right=True, include_lowest=True)
+    return df
 
+file_name = "loan_disburse_report_Oct_2025.xlsx"
+df = load_data(file_name)
+if df.empty:
+    st.error("Error loading data.")
+    st.stop()
 
-# --- SIDEBAR FILTERS ---
-st.sidebar.title("⚙️ Dashboard Controls")
-region = st.sidebar.selectbox("Select Region", ["All", "North", "South", "East", "West"])
-month = st.sidebar.selectbox("Select Month", ["January", "February", "March", "April", "May"])
-st.sidebar.button("Apply Filters")
+# --- 5. UTILITIES ---
+def fullint(val):
+    if pd.isnull(val) or val == 0:
+        return "0"
+    val = float(val)
+    return "{:,}".format(int(val)) if val.is_integer() else "{:,.2f}".format(val)
 
+# --- 6. KPI SECTION ---
+st.markdown(f"<div class='section-title'>Key Performance Indicators</div>", unsafe_allow_html=True)
 
-# --- MAIN PAGE TITLE ---
-st.title("📊 Loan KPI & Prediction Dashboard")
+kpi_values = [
+    ("Total Loan Disbursed", fullint(df['Loan_Amount'].sum())),
+    ("Number of Loans", fullint(len(df))),
+    ("Avg Loan Amount", fullint(df['Loan_Amount'].mean())),
+    ("Total Insurance", fullint(df['Insurance_Amount'].sum())),
+    ("Outstanding Principal", fullint(df['Outstanding_Pr'].sum())),
+    ("Total Due Principal", fullint(df['Due_Amount_Pr'].sum())),
+]
 
+cols = st.columns(len(kpi_values))
+for i, (label, value) in enumerate(kpi_values):
+    cols[i].markdown(
+        f"<div class='kpi-card'>"
+        f"<div class='kpi-label'>{label}</div>"
+        f"<div class='kpi-value'>{value}</div>"
+        f"</div>", unsafe_allow_html=True
+    )
 
-# --- KPI SECTION ---
-st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric(label="Total Loans", value="12,450")
-with col2:
-    st.metric(label="Active Clients", value="8,760")
-with col3:
-    st.metric(label="Portfolio (BDT)", value="৳ 3.4B")
-st.markdown("</div>", unsafe_allow_html=True)
+# --- 7. COMMON PLOT STYLING ---
+def plot_base(fig):
+    fig.update_layout(
+        plot_bgcolor=CARD_BACKGROUND,
+        paper_bgcolor=CARD_BACKGROUND,
+        font=dict(family="Inter", color=TEXT_COLOR),
+        title_font=dict(size=18, color=PRIMARY_COLOR),
+        margin=dict(l=20, r=20, t=50, b=30),
+    )
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="#e2e8f0")
+    return fig
 
+def card_plot(fig, col):
+    with col:
+        st.markdown("<div class='chart-card'>", unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- SAMPLE DATA FOR CHARTS ---
-np.random.seed(42)
-months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"]
-disbursement = np.random.randint(100, 400, size=len(months))
-repayment = np.random.randint(80, 350, size=len(months))
-par = np.random.uniform(1.2, 4.5, size=len(months))
+# --- 8. VISUALS ---
+st.markdown(f"<div class='section-title'>Loan Disbursement Analysis</div>", unsafe_allow_html=True)
+c1, c2, c3 = st.columns(3)
 
-df = pd.DataFrame({
-    "Month": months,
-    "Loan Disbursement": disbursement,
-    "Loan Repayment": repayment,
-    "PAR (%)": par
-})
+# 1. Loan by Frequency
+freq_sum = df.groupby('Frequency')['Loan_Amount'].sum().reset_index()
+fig1 = px.bar(freq_sum, x='Frequency', y='Loan_Amount', color_discrete_sequence=[PRIMARY_COLOR], title="Loan by Frequency")
+card_plot(plot_base(fig1), c1)
 
+# 2. Outstanding by Division
+div_out = df.groupby('Divisional_Office')['Outstanding_Pr'].sum().reset_index()
+fig2 = px.bar(div_out, x='Divisional_Office', y='Outstanding_Pr', color_discrete_sequence=[SECONDARY_COLOR], title="Outstanding by Division")
+card_plot(plot_base(fig2), c2)
 
-# --- PORTFOLIO OVERVIEW CHART ---
-st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
-st.subheader("📈 Portfolio Overview")
+# 3. Insurance by Division
+div_ins = df.groupby('Divisional_Office')['Insurance_Amount'].sum().reset_index()
+fig3 = px.bar(div_ins, x='Divisional_Office', y='Insurance_Amount', color_discrete_sequence=["#f59e0b"], title="Insurance by Division")
+card_plot(plot_base(fig3), c3)
 
-fig = go.Figure()
-fig.add_trace(go.Bar(
-    x=df["Month"],
-    y=df["Loan Disbursement"],
-    name="Disbursement",
-    marker_color=PRIMARY_COLOR
-))
-fig.add_trace(go.Bar(
-    x=df["Month"],
-    y=df["Loan Repayment"],
-    name="Repayment",
-    marker_color="#10b981"
-))
-fig.update_layout(
-    barmode='group',
-    title="Monthly Loan Disbursement vs Repayment",
-    plot_bgcolor=BACKGROUND_COLOR,
-    paper_bgcolor=CARD_BG,
-    font=dict(color=TEXT_COLOR),
-    legend=dict(
-        bgcolor=CARD_BG,
-        bordercolor=BORDER_COLOR,
-        borderwidth=1
-    ),
-    margin=dict(t=60, b=40)
-)
-st.plotly_chart(fig, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
+# --- 9. PREDICTION ---
+st.markdown(f"<div class='section-title'>📈 Next Month Loan Prediction</div>", unsafe_allow_html=True)
 
+oct_loan_amount = df['Loan_Amount'].sum()
+min_date, max_date = df['Disbursment_Date'].min(), df['Disbursment_Date'].max()
+disbursing_days = (max_date - min_date).days + 1 if pd.notna(min_date) and pd.notna(max_date) else 27
+avg_daily = oct_loan_amount / disbursing_days
+pred_nov = avg_daily * 30
+change = "increase" if pred_nov > oct_loan_amount else "decrease"
+color = "#16a34a" if change == "increase" else "#dc2626"
 
-# --- PAR TREND CHART ---
-st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
-st.subheader("📉 Portfolio at Risk (PAR) Trend")
+p1, p2 = st.columns([1, 2])
+with p1:
+    st.markdown(f"""
+    <div class='pred-card'>
+        <h4 style='color:{PRIMARY_COLOR};'>Predicted Change</h4>
+        <div style='text-align:center; font-size:2.2em; font-weight:800; color:{color};'>{change.upper()}</div>
+        <p style='text-align:center; color:{SUBTEXT_COLOR};'>(Based on Oct daily avg x 30 days)</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-fig_par = go.Figure()
-fig_par.add_trace(go.Scatter(
-    x=df["Month"],
-    y=df["PAR (%)"],
-    mode='lines+markers',
-    name='PAR %',
-    line=dict(color="#ef4444", width=3)
-))
-fig_par.update_layout(
-    title="Monthly PAR Trend",
-    plot_bgcolor=BACKGROUND_COLOR,
-    paper_bgcolor=CARD_BG,
-    font=dict(color=TEXT_COLOR),
-    yaxis=dict(title="PAR (%)"),
-    legend=dict(
-        bgcolor=CARD_BG,
-        bordercolor=BORDER_COLOR,
-        borderwidth=1
-    ),
-    margin=dict(t=60, b=40)
-)
-st.plotly_chart(fig_par, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
+with p2:
+    st.markdown(f"""
+    <div class='pred-card'>
+        <h4 style='color:{PRIMARY_COLOR};'>Prediction Details</h4>
+        <ul style='list-style:none; padding-left:0; font-size:1.1em; color:{TEXT_COLOR};'>
+            <li><b>Total Loan (Oct):</b> <span style='float:right;'>${fullint(oct_loan_amount)}</span></li>
+            <li><b>Active Days:</b> <span style='float:right;'>{disbursing_days}</span></li>
+            <li><b>Avg Daily:</b> <span style='float:right;'>${fullint(avg_daily)}</span></li>
+            <li style='border-top:1px solid #e2e8f0; margin-top:0.5em; padding-top:0.5em;'><b>Predicted (Nov):</b> <span style='float:right; color:{PRIMARY_COLOR}; font-weight:700;'>${fullint(pred_nov)}</span></li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
 
-
-# --- DATA TABLE ---
-st.markdown("<div class='shadow-card'>", unsafe_allow_html=True)
-st.subheader("📋 Detailed Data View")
-st.dataframe(df.style.format({"PAR (%)": "{:.2f}"}))
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align:center; color:#94a3b8; margin-top:30px;'>Dashboard theme updated successfully ✅</div>", unsafe_allow_html=True)
