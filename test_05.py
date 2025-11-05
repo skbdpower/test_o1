@@ -425,7 +425,7 @@ def main():
         initial_sidebar_state="collapsed"
     )
 
-    st.title("📊 Pomis Summary Report Oct 2025 Analysis 📈")
+    st.title("📊 All Branch Pomis Summary Report Oct 2025 Analysis 📈")
     st.markdown("This dashboard focuses on key ratios, compositional analysis, efficiency, and high-risk branch identification.")
     st.markdown("---")
 
